@@ -5,10 +5,18 @@
 #include "EnhancedInputSubsystems.h"
 #include "EnhancedInputComponent.h"
 #include "InputAction.h"
+#include "Interaction/EnemyInterface.h"
 
 AAuraPlayerController::AAuraPlayerController()
 {
 	bReplicates = true;
+}
+
+void AAuraPlayerController::PlayerTick(float DeltaTime)
+{
+	Super::PlayerTick(DeltaTime);
+
+	CursorTrace();
 }
 
 void AAuraPlayerController::BeginPlay()
@@ -51,5 +59,55 @@ void AAuraPlayerController::Move(const FInputActionValue& InputActionValue)
 	{
 		ControlledPawn->AddMovementInput(ForwardDirection, InputAxisVector.Y);
 		ControlledPawn->AddMovementInput(RightDirection, InputAxisVector.X);
+	}
+}
+
+void AAuraPlayerController::CursorTrace()
+{
+	FHitResult CursorHit;
+	GetHitResultUnderCursor(ECC_Visibility, false, CursorHit);
+	if (!CursorHit.bBlockingHit)
+	{
+		return;
+	}
+
+	LastActor = ThisActor;
+	ThisActor = CursorHit.GetActor();
+
+	/**
+	* Line trace from cursor. There are several scenarios:
+	* A. LastActor is null && ThisActor is null
+	*		- do nothing
+	* B. LastActor is null && ThisActor is valid
+	*		- call highlight on this actor
+	* C. LastActor is valid && ThisActor is null
+	*		- call unhighlight on LastActor
+	* D. Both actors are valid, but LastActor != ThisActor
+	*		- call unhilight on LastActor and highlight on ThisActor
+	* E. Both actors valid, same actor
+	*		- do nothing
+	*/
+
+	if (!LastActor)
+	{
+		if (ThisActor)
+		{
+			// Case B
+			ThisActor->HighlightActor();
+		}
+	}
+	else
+	{
+		if (!ThisActor)
+		{
+			// Case C
+			LastActor->UnhighlightActor();
+		}
+		else if (LastActor != ThisActor)
+		{
+			// Case D
+			LastActor->UnhighlightActor();
+			ThisActor->HighlightActor();
+		}
 	}
 }
